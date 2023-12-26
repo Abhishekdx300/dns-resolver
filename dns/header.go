@@ -11,7 +11,7 @@ type Header struct {
 	AdditionalRecordCount uint16
 }
 
-func (hdr *Header) Encode() []byte {
+func (hdr *Header) encode() []byte {
 	/*
 		ID -- 2 Byte
 		Flags -- 2 Byte
@@ -31,4 +31,28 @@ func (hdr *Header) Encode() []byte {
 	binary.BigEndian.PutUint16(buffer[10:12], hdr.AdditionalRecordCount)
 
 	return buffer
+}
+
+func HeaderBuilder(id, flags uint16) Header {
+	header := Header{
+		ID:                    id,
+		Flags:                 flags,
+		BodyEntryCount:        1,
+		AnswerRecordCount:     0, // rem. 3 not present
+		AuthorityRecordCount:  0,
+		AdditionalRecordCount: 0,
+	}
+	return header
+}
+
+func decodeHeader(header []byte) *Header {
+	newheader := Header{
+		ID:                    binary.BigEndian.Uint16(header[0:2]),
+		Flags:                 binary.BigEndian.Uint16(header[2:4]),
+		BodyEntryCount:        binary.BigEndian.Uint16(header[4:6]),
+		AnswerRecordCount:     binary.BigEndian.Uint16(header[6:8]),
+		AuthorityRecordCount:  binary.BigEndian.Uint16(header[8:10]),
+		AdditionalRecordCount: binary.BigEndian.Uint16(header[10:12]),
+	}
+	return &newheader
 }
