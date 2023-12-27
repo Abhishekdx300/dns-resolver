@@ -19,7 +19,13 @@ func decodeResource(buffer []byte, offset int) (*ResourceRecord, int) {
 	}
 	ttl := binary.BigEndian.Uint32(buffer[offset+4 : offset+8])
 	length := binary.BigEndian.Uint16(buffer[offset+8 : offset+10])
-	data := buffer[offset+10 : offset+10+int(length)]
+	var data []byte
+	if newbody.Type == 2 && newbody.Class == 1 {
+		newDomainName, _ := decodeDomainName(buffer, offset+10)
+		data = []byte(newDomainName)
+	} else {
+		data = buffer[10+offset : 10+offset+int(length)]
+	}
 
 	newResourceBody := ResourceRecord{
 		body:   newbody,

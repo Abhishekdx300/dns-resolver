@@ -15,18 +15,16 @@ type Body struct {
 func (body *Body) encode() ([]byte, error) {
 	splitted := strings.Split(body.Name, ".")
 	// dots will be replaced by uint8 integers
-	// so the effective length of the name will be every character+no. of parts
+	// so the effective length of the name will be every character+ no. of parts
 	strlen := 0
 	for _, val := range splitted {
 		strlen += len(val)
 	}
-	strlen += len(splitted) + 1 // len for no. of "." and +1 for extra zero at last
+	// len for no. of "." and +1 for extra zero at last
+	strlen += len(splitted) + 1
 
 	size := strlen + 4 // 2 for type, 2 for class
 	encoded := make([]byte, size)
-
-	// now need to convert the string and append to encoded
-	// dns.google.com --> 3dns6google3com0
 
 	ind := 0
 	for _, str := range splitted {
@@ -42,14 +40,14 @@ func (body *Body) encode() ([]byte, error) {
 	// lastly append 0
 	encoded[ind] = 0
 
-	// now append type and class
+	//append type and class
 	binary.BigEndian.PutUint16(encoded[size-4:size-2], body.Type)
 	binary.BigEndian.PutUint16(encoded[size-2:size], body.Class)
 
 	return encoded, nil
 }
 
-func BodyBuilder(name string) Body {
+func bodyBuilder(name string) Body {
 	Body := Body{
 		Name:  name,
 		Type:  1,
@@ -65,10 +63,10 @@ func decodeBody(buffer []byte, offset int) (*Body, int, error) {
 
 	newQuestionBody := Body{
 		Name:  name,
-		Type:  binary.BigEndian.Uint16(buffer[offset+1 : offset+3]),
-		Class: binary.BigEndian.Uint16(buffer[offset+3 : offset+5]),
+		Type:  binary.BigEndian.Uint16(buffer[offset : offset+2]),
+		Class: binary.BigEndian.Uint16(buffer[offset+2 : offset+4]),
 	}
-	return &newQuestionBody, offset + 5, nil
+	return &newQuestionBody, offset + 4, nil
 }
 
 func decodeDomainName(buffer []byte, offset int) (string, int) {
@@ -91,7 +89,5 @@ func decodeDomainName(buffer []byte, offset int) (string, int) {
 			name += "."
 		}
 	}
-	// offset pointing at last zero
-	// extra "." removed
-	return name[:len(name)-1], offset
+	return name[:len(name)-1], offset + 1
 }

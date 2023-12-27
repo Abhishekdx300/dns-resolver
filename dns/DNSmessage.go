@@ -1,13 +1,16 @@
 package dns
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
+	"time"
 )
 
 // const serverIP = "8.8.8.8"
-// const serverIP = "192.203.230.10"
-const serverIP = "198.41.0.4"
+const serverIP = "192.203.230.10"
+
+// const serverIP = "198.41.0.4"
 const DnsPort = "53"
 const bufferSize = 512
 
@@ -23,7 +26,7 @@ type DNSquery struct {
 	Body   Body
 }
 
-func (query *DNSquery) EncodeQuery() ([]byte, error) {
+func (query *DNSquery) encodeQuery() ([]byte, error) {
 	header := query.Header.encode()
 	body, err := query.Body.encode()
 	if err != nil {
@@ -34,7 +37,7 @@ func (query *DNSquery) EncodeQuery() ([]byte, error) {
 }
 
 func sendMessage(message []byte, IPaddr string) ([]byte, error) {
-	conn, err := net.Dial("udp", fmt.Sprintf("%s:53", IPaddr))
+	conn, err := net.DialTimeout("udp", fmt.Sprintf("%s:53", IPaddr), time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +55,15 @@ func sendMessage(message []byte, IPaddr string) ([]byte, error) {
 	return buffer, nil
 }
 
-func Deserialize(message []byte, queryStr string) (string, error) {
+func validateHeaderID(header *Header, buffer []byte) error {
+	respHeaderID := binary.BigEndian.Uint16(buffer[:2])
+	if header.ID != respHeaderID {
+		return fmt.Errorf("Header doesnt match")
+	}
+	return nil
+}
+
+func deserialize(message []byte, queryStr string) (string, error) {
 
 	stack := Stack{}
 	stack.Push(serverIP)
@@ -73,9 +84,11 @@ func Deserialize(message []byte, queryStr string) (string, error) {
 		header := buffer[0:12]
 		decodedHeader := decodeHeader(header)
 		//todo need to validate id of header
-
-		// decodedQuestion, offset, err := decodeQuestionBody(buffer, 12) // after the header
-		_, offset, err := decodeBody(buffer, 12) // after the header
+		err = validateHeaderID(decodedHeader, buffer)
+		if err != nil {
+			return "", err
+		}
+		_, offset, err := decodeBody(buffer, 12)
 
 		if err != nil {
 			return "", err
@@ -119,16 +132,35 @@ func Deserialize(message []byte, queryStr string) (string, error) {
 		}
 
 		if len(stack) == 0 && len(responseAuths) > 0 {
+			fmt.Println("Querying for name server ip.")
 			for _, auth := range responseAuths {
-				newserv := fmt.Sprintf("%d.%d.%d.%d", auth.Data[0], auth.Data[1], auth.Data[2], auth.Data[3])
-				_, alreadyVisited := visited[newserv]
-				if !alreadyVisited {
-					stack.Push(newserv)
-					visited[newserv] = 1
-				}
+				// new query message
+				nameServer := Initialize(string(auth.Data), 101)
+				stack.Push(nameServer)
 			}
 		}
 	}
-
 	return "", fmt.Errorf("no ip found")
+}
+
+func Initialize(queryStr string, id int) string {
+	// 2 byte any number--Big Endian
+	// id := uint16(22)
+	// recursion bit(8th bit) 0
+	flags := uint16(0)
+	query := DNSquery{
+		Header: headerBuilder(uint16(id), flags),
+		Body:   bodyBuilder(queryStr),
+	}
+
+	encodedQuery, err := query.encodeQuery()
+	if err != nil {
+		panic(err)
+	}
+
+	responseIP, err := deserialize(encodedQuery, queryStr)
+	if err != nil {
+		panic(err)
+	}
+	return responseIP
 }

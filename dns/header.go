@@ -23,7 +23,7 @@ func (hdr *Header) encode() []byte {
 	*/
 	buffer := make([]byte, 12)
 
-	binary.BigEndian.PutUint16(buffer[:2], hdr.ID)
+	binary.BigEndian.PutUint16(buffer[0:2], hdr.ID)
 	binary.BigEndian.PutUint16(buffer[2:4], hdr.Flags)
 	binary.BigEndian.PutUint16(buffer[4:6], hdr.BodyEntryCount)
 	binary.BigEndian.PutUint16(buffer[6:8], hdr.AnswerRecordCount)
@@ -33,7 +33,7 @@ func (hdr *Header) encode() []byte {
 	return buffer
 }
 
-func HeaderBuilder(id, flags uint16) Header {
+func headerBuilder(id, flags uint16) Header {
 	header := Header{
 		ID:                    id,
 		Flags:                 flags,
