@@ -2,7 +2,7 @@
 ### Built using Go.
 
 - read [docs](https://datatracker.ietf.org/doc/html/rfc1035) for implementation of the code.
-- just put domain name in `main.go` file and run using `go run main.go` to see the output.
+- run using `go run main.go` command and give the url as input to see the output.
 
 - for `queryString := "cses.fi"` :
 ```
